@@ -6,6 +6,7 @@ class UserState(Helper):
 
     CREATE_GROUP_STATE = ListItem()
     JOIN_GROUP_STATE = ListItem()
+    IN_GROUP_STATE = ListItem()
 
 
 if __name__ == '__main__':

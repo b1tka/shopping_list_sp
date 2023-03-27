@@ -3,6 +3,15 @@ from sqlalchemy import orm
 from .db_session import SqlAlchemyBase
 
 
+users_to_groups_table = sqlalchemy.Table(
+    'users_to_groups',
+    SqlAlchemyBase.metadata,
+    sqlalchemy.Column('group', sqlalchemy.Integer, sqlalchemy.ForeignKey('groups.id')),
+    sqlalchemy.Column('user', sqlalchemy.Integer, sqlalchemy.ForeignKey('users.id'))
+)
+
+
+
 class Group(SqlAlchemyBase):
     __tablename__ = 'groups'
 

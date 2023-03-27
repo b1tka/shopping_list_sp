@@ -47,3 +47,18 @@ def join_to_group(group_code, user_id):
     db_sess.commit()
     db_sess.close()
     return name
+
+
+def get_group_name(user_id):
+    db_sess = db_session.create_session()
+    user = db_sess.query(Users).filter(Users.tg_user_id == user_id).first()
+    return user.group[0].name
+
+
+def leave_from_group(user_id):
+    db_sess = db_session.create_session()
+    user = db_sess.query(Users).filter(Users.tg_user_id == user_id).first()
+    print('AAAAAAAAAAAAAAAAAAAA', user.group[0])
+    user.group.remove(user.group[0])
+    db_sess.commit()
+    db_sess.close()
