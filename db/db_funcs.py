@@ -5,6 +5,7 @@ from string import ascii_letters
 from data import db_session
 from data.users import Users
 from data.group import Group
+from data.lists import Lists
 
 
 def add_user_to_db_table_user(username, tg_user_id, chat_id):
@@ -49,10 +50,31 @@ def join_to_group(group_code, user_id):
     return name
 
 
+def get_group_by_id(user_id):
+    db_sess = db_session.create_session()
+    user = db_sess.query(Users).filter(Users.tg_user_id == user_id).first()
+    return user.group[0].id
+
+
 def get_group_name(user_id):
     db_sess = db_session.create_session()
     user = db_sess.query(Users).filter(Users.tg_user_id == user_id).first()
     return user.group[0].name
+
+
+def get_actual_lists(group_id):
+    db_sess = db_session.create_session()
+    group = db_sess.query(Group).filter(Group.id == group_id).first()
+    return group.lists
+
+
+def create_new_list(group_id, name_list):
+    db_sess = db_session.create_session()
+    list = Lists()
+    list.group_id = group_id
+    list.name = name_list
+    db_sess.add(list)
+    db_sess.commit()
 
 
 def leave_from_group(user_id):

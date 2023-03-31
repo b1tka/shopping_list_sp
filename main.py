@@ -7,7 +7,7 @@ from aiogram.dispatcher.webhook import DeleteMessage
 
 from db import db_funcs
 from data import db_session
-from buttons.buttons import *
+from buttons.keyboards import *
 from data.texts import *
 from utils import UserState
 from TOKEN import TOKEN
@@ -89,12 +89,35 @@ async def delete_group(callback_query: types.CallbackQuery):
     await callback_query.answer(text='Вы вышли из группы')
 
 
+@dp.message_handler(state=UserState.WAITING_LIST_NAME)
+async def add_new_list(message: types.Message):
+    group_id = db_funcs.get_group_by_id(message.from_user.id)
+    db_funcs.create_new_list(group_id, message.text)
+    lists = db_funcs.get_actual_lists(group_id)
+    keyboard = generate_lists_keyboard(lists)
+    await bot.edit_message_text(chat_id=message.chat.id,
+                                message_id=message.message_id,
+                                text=actual_lists_text(message.from_user.id),
+                                reply_markup=keyboard)
+
+
+@dp.callback_query_handler(lambda inline_query: inline_query.data == 'add_new_list', state=UserState.IN_GROUP_STATE)
+async def add_new_list(callback_query: types.CallbackQuery):
+    state = dp.current_state(user=callback_query.from_user.id)
+    await state.set_state('waiting_list_name')
+    await bot.send_message(chat_id=callback_query.message)
+
+
 @dp.callback_query_handler(lambda inline_query: inline_query.data == 'show_all_lists',
                            state=UserState.IN_GROUP_STATE)
 async def show_all_lists(callback_query: types.CallbackQuery):
+    group_id = db_funcs.get_group_by_id(callback_query.from_user.id)
+    lists = db_funcs.get_actual_lists(group_id)
+    keyboard = generate_lists_keyboard('')
     await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                 message_id=callback_query.message.message_id,
-                                text=actual_lists_text(callback_query.from_user.id))
+                                text=actual_lists_text(callback_query.from_user.id),
+                                reply_markup=keyboard)
 
 
 if __name__ == '__main__':

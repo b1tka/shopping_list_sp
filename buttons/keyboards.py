@@ -28,8 +28,19 @@ group_keyboard.add(lists)
 
 
 
-# -----------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------actual list-------------------------------------------------------------
 # кнопки
+def generate_lists_keyboard(lists):
+    add_list = InlineKeyboardButton(text='Добавить новый лист', callback_data='add_new_list')
+    list_keyboard = InlineKeyboardMarkup()
+
+    for list in lists:
+        list_keyboard.add(InlineKeyboardButton(text=list.name, callback_data=list.id))
+
+    list_keyboard.add(add_list)
+    return list_keyboard
+
+#Клавиатура
 
 
 # ------------------------------------------------------------------------------------------

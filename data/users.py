@@ -13,5 +13,4 @@ class Users(SqlAlchemyBase):
     personal_time = sqlalchemy.Column(sqlalchemy.Time)
 
     admin = orm.relationship('Group', back_populates='admin')
-
     group = orm.relationship('Group', secondary='users_to_groups', backref='users')

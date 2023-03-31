@@ -11,7 +11,6 @@ users_to_groups_table = sqlalchemy.Table(
 )
 
 
-
 class Group(SqlAlchemyBase):
     __tablename__ = 'groups'
 
@@ -22,3 +21,4 @@ class Group(SqlAlchemyBase):
 
     admin = orm.relationship('Users')
     members = orm.relationship('Users', secondary='users_to_groups', backref='groups')
+    lists = orm.relationship('Lists', back_populates='group')
