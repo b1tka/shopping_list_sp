@@ -57,7 +57,9 @@ def get_group_by_user_id(user_id):
 
 
 def get_chat_id_by_user_id(user_id):
-    db_sess = db_session.create_session()\
+    db_sess = db_session.create_session()
+    user = db_sess.query(Users).filter(Users.tg_user_id == user_id).first()
+    return user.chat_id
 
 
 def get_group_name(user_id):
@@ -70,6 +72,12 @@ def get_actual_lists(group_id):
     db_sess = db_session.create_session()
     group = db_sess.query(Group).filter(Group.id == group_id).first()
     return group.lists
+
+
+def get_name_list_by_list_id(list_id):
+    db_sess = db_session.create_session()
+    list = db_sess.query(Lists).filter(Lists.id == list_id).first()
+    return list.name
 
 
 def create_new_list(group_id, name_list):

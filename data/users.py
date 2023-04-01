@@ -12,5 +12,6 @@ class Users(SqlAlchemyBase):
     nickname = sqlalchemy.Column(sqlalchemy.String, nullable=True)
     personal_time = sqlalchemy.Column(sqlalchemy.Time)
 
+    sales = orm.relationship('Sales', back_populates='user')
     admin = orm.relationship('Group', back_populates='admin')
     group = orm.relationship('Group', secondary='users_to_groups', backref='users')

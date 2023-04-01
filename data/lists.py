@@ -12,3 +12,4 @@ class Lists(SqlAlchemyBase):
 
 
     group = orm.relationship('Group')
+    sales = orm.relationship('Sales', back_populates='list')

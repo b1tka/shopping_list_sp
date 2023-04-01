@@ -45,7 +45,8 @@ async def create_group(message: types.Message):
     state = dp.current_state(user=message.from_user.id)
     db_funcs.create_new_group(admin_id, name)
     await state.set_state('in_group_state')  # UserState.IN_GROUP_STATE
-    await message.answer(text=main_group_text(message.from_user.id), reply_markup=group_keyboard)
+    await message.answer(text=main_group_text(message.from_user.id),
+                         reply_markup=group_keyboard)
 
 
 # Запрос на код группы
@@ -69,8 +70,9 @@ async def join_group(message: types.Message):
             await state.reset_state()
         else:
             await message.answer(text=f'{success_join_text} {res}')
-            await message.answer(text=f'{main_group_text(message.from_user.id)}',
-                                 reply_markup=group_keyboard)
+            await message.answer(
+                text=f'{main_group_text(message.from_user.id)}',
+                reply_markup=group_keyboard)
             await state.set_state('in_group_state')  # UserState.IN_GROUP_STATE
     else:
         await message.answer(text=group_doesnt_exist_text)
@@ -78,7 +80,9 @@ async def join_group(message: types.Message):
 
 
 # Выход из группы
-@dp.callback_query_handler(lambda inline_query: inline_query.data == 'leave_from_group', state=UserState.IN_GROUP_STATE)
+@dp.callback_query_handler(
+    lambda inline_query: inline_query.data == 'leave_from_group',
+    state=UserState.IN_GROUP_STATE)
 async def delete_group(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
     db_funcs.leave_from_group(callback_query.from_user.id)
@@ -95,13 +99,16 @@ async def add_new_list(message: types.Message):
     group_id = db_funcs.get_group_by_user_id(message.from_user.id)
     db_funcs.create_new_list(group_id, message.text)
     lists = db_funcs.get_actual_lists(group_id)
-    keyboard = generate_lists_keyboard(lists)
+    keyboard = generate_actual_lists_keyboard(lists)
     await state.set_state('waiting_to_open_list')
-    await message.answer(text=actual_lists_text(message.from_user.id), reply_markup=keyboard)
+    await message.answer(text=actual_lists_text(message.from_user.id),
+                         reply_markup=keyboard)
 
 
 # Добавить новый лист
-@dp.callback_query_handler(lambda inline_query: inline_query.data == 'add_new_list', state=UserState.WAITING_TO_OPEN_LIST)
+@dp.callback_query_handler(
+    lambda inline_query: inline_query.data == 'add_new_list',
+    state=UserState.WAITING_TO_OPEN_LIST)
 async def add_new_list(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
     await state.set_state('waiting_list_name')
@@ -110,34 +117,88 @@ async def add_new_list(callback_query: types.CallbackQuery):
                                 text='Введите название нового листа')
 
 
-@dp.callback_query_handler(lambda inline_query: inline_query.data == 'back_to_groups', state=UserState.WAITING_TO_OPEN_LIST)
+@dp.callback_query_handler(
+    lambda inline_query: inline_query.data == 'back_to_groups',
+    state=UserState.WAITING_TO_OPEN_LIST)
 async def back_to_groups(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
     user_id = callback_query.from_user.id
     chat_id = db_funcs.get_chat_id_by_user_id(user_id)
     group = db_funcs.get_group_by_user_id(user_id)
     await state.set_state('in_group_state')
-    await bot.edit_message_text(chat_id='123')
+    await bot.delete_message(chat_id=chat_id,
+                             message_id=callback_query.message.message_id)
+    await bot.send_message(chat_id=chat_id, text=main_group_text(user_id),
+                           reply_markup=group_keyboard)
+
 
 # Показать все листы
-@dp.callback_query_handler(lambda inline_query: inline_query.data == 'show_all_lists',
-                           state=UserState.IN_GROUP_STATE)
+@dp.callback_query_handler(
+    lambda inline_query: inline_query.data == 'show_all_lists',
+    state=UserState.IN_GROUP_STATE)
 async def show_all_lists(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
     group_id = db_funcs.get_group_by_user_id(callback_query.from_user.id)
     lists = db_funcs.get_actual_lists(group_id)
-    keyboard = generate_lists_keyboard(lists)
+    keyboard = generate_actual_lists_keyboard(lists)
     await state.set_state('waiting_to_open_list')
     await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                 message_id=callback_query.message.message_id,
-                                text=actual_lists_text(callback_query.from_user.id),
+                                text=actual_lists_text(
+                                    callback_query.from_user.id),
                                 reply_markup=keyboard)
 
 
 @dp.callback_query_handler(state=UserState.WAITING_TO_OPEN_LIST)
 async def open_list(callback_query: types.CallbackQuery):
+    state = dp.current_state(user=callback_query.from_user.id)
+    user_id = callback_query.from_user.id
+    chat_id = db_funcs.get_chat_id_by_user_id(user_id)
     list_id = callback_query.data
+    name = db_funcs.get_name_list_by_list_id(list_id)
+    await state.set_data(
+        {'curr_list': list_id}
+    )
+    await state.set_state('in_list')
+    await bot.delete_message(chat_id=chat_id,
+                             message_id=callback_query.message.message_id)
+    await bot.send_message(chat_id=chat_id,
+                           text=f'Продукты листа {name}',
+                           reply_markup=generate_main_list_keyboard())
+
+
+@dp.callback_query_handler(
+    lambda inline_query: inline_query.data == 'add_new_item',
+    state=UserState.IN_LIST)
+async def add_new_product(callback_query: types.CallbackQuery):
+    state = dp.current_state(user=callback_query.from_user.id)
+    chat_id = db_funcs.get_chat_id_by_user_id(callback_query.from_user.id)
+    await state.set_state('add_new_product')
+    await bot.delete_message(chat_id=chat_id,
+                             message_id=callback_query.message.message_id)
+    await bot.send_message(chat_id=chat_id, text='Введите название продукта')
+
+
+@dp.message_handler(state=UserState.ADD_NEW_PRODUCT)
+async def set_name_for_new_product(message: types.Message):
     pass
+
+
+@dp.callback_query_handler(
+    lambda inline_query: inline_query.data == 'back_to_actual_lists',
+    state=UserState.IN_LIST)
+async def back_to_actual_list(callback_query: types.CallbackQuery):
+    user_id = callback_query.from_user.id
+    chat_id = db_funcs.get_chat_id_by_user_id(user_id)
+    state = dp.current_state(user=user_id)
+    group_id = db_funcs.get_group_by_user_id(user_id)
+    lists = db_funcs.get_actual_lists(group_id)
+    keyboard = generate_actual_lists_keyboard(lists)
+    await state.set_state('waiting_to_open_list')
+    await bot.edit_message_text(chat_id=chat_id,
+                                message_id=callback_query.message.message_id,
+                                text=actual_lists_text(user_id),
+                                reply_markup=keyboard)
 
 
 if __name__ == '__main__':
