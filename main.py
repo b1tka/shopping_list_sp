@@ -12,7 +12,6 @@ from data.texts import *
 from utils import UserState
 from TOKEN import TOKEN
 
-
 # Настройка бота
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN)
@@ -34,7 +33,7 @@ async def start(message: types.Message):
 @dp.message_handler(lambda message: message.text == create_group_text)
 async def start_create_group(message: types.Message):
     state = dp.current_state(user=message.from_user.id)
-    await state.set_state('create_group_state') # UserState.CREATE_GROUP_STATE
+    await state.set_state('create_group_state')  # UserState.CREATE_GROUP_STATE
     await message.answer(text=offer_to_write_text)
 
 
@@ -45,7 +44,7 @@ async def create_group(message: types.Message):
     name = message.text
     state = dp.current_state(user=message.from_user.id)
     db_funcs.create_new_group(admin_id, name)
-    await state.set_state('in_group_state') # UserState.IN_GROUP_STATE
+    await state.set_state('in_group_state')  # UserState.IN_GROUP_STATE
     await message.answer(text=main_group_text(message.from_user.id), reply_markup=group_keyboard)
 
 
@@ -53,7 +52,7 @@ async def create_group(message: types.Message):
 @dp.message_handler(lambda message: message.text == join_group_text)
 async def start_join_group(message: types.Message):
     state = dp.current_state(user=message.from_user.id)
-    await state.set_state('join_group_state') # UserState.JOIN_GROUP_STATE
+    await state.set_state('join_group_state')  # UserState.JOIN_GROUP_STATE
     await message.answer(text=offer_to_send_code_text)
 
 
@@ -72,7 +71,7 @@ async def join_group(message: types.Message):
             await message.answer(text=f'{success_join_text} {res}')
             await message.answer(text=f'{main_group_text(message.from_user.id)}',
                                  reply_markup=group_keyboard)
-            await state.set_state('in_group_state') # UserState.IN_GROUP_STATE
+            await state.set_state('in_group_state')  # UserState.IN_GROUP_STATE
     else:
         await message.answer(text=group_doesnt_exist_text)
         await state.reset_state()
@@ -89,35 +88,56 @@ async def delete_group(callback_query: types.CallbackQuery):
     await callback_query.answer(text='Вы вышли из группы')
 
 
+# Ожидание названия листа
 @dp.message_handler(state=UserState.WAITING_LIST_NAME)
 async def add_new_list(message: types.Message):
-    group_id = db_funcs.get_group_by_id(message.from_user.id)
+    state = dp.current_state(user=message.from_user.id)
+    group_id = db_funcs.get_group_by_user_id(message.from_user.id)
     db_funcs.create_new_list(group_id, message.text)
     lists = db_funcs.get_actual_lists(group_id)
     keyboard = generate_lists_keyboard(lists)
-    await bot.edit_message_text(chat_id=message.chat.id,
-                                message_id=message.message_id,
-                                text=actual_lists_text(message.from_user.id),
-                                reply_markup=keyboard)
+    await state.set_state('waiting_to_open_list')
+    await message.answer(text=actual_lists_text(message.from_user.id), reply_markup=keyboard)
 
 
-@dp.callback_query_handler(lambda inline_query: inline_query.data == 'add_new_list', state=UserState.IN_GROUP_STATE)
+# Добавить новый лист
+@dp.callback_query_handler(lambda inline_query: inline_query.data == 'add_new_list', state=UserState.WAITING_TO_OPEN_LIST)
 async def add_new_list(callback_query: types.CallbackQuery):
     state = dp.current_state(user=callback_query.from_user.id)
     await state.set_state('waiting_list_name')
-    await bot.send_message(chat_id=callback_query.message)
+    await bot.edit_message_text(chat_id=callback_query.message.chat.id,
+                                message_id=callback_query.message.message_id,
+                                text='Введите название нового листа')
 
 
+@dp.callback_query_handler(lambda inline_query: inline_query.data == 'back_to_groups', state=UserState.WAITING_TO_OPEN_LIST)
+async def back_to_groups(callback_query: types.CallbackQuery):
+    state = dp.current_state(user=callback_query.from_user.id)
+    user_id = callback_query.from_user.id
+    chat_id = db_funcs.get_chat_id_by_user_id(user_id)
+    group = db_funcs.get_group_by_user_id(user_id)
+    await state.set_state('in_group_state')
+    await bot.edit_message_text(chat_id='123')
+
+# Показать все листы
 @dp.callback_query_handler(lambda inline_query: inline_query.data == 'show_all_lists',
                            state=UserState.IN_GROUP_STATE)
 async def show_all_lists(callback_query: types.CallbackQuery):
-    group_id = db_funcs.get_group_by_id(callback_query.from_user.id)
+    state = dp.current_state(user=callback_query.from_user.id)
+    group_id = db_funcs.get_group_by_user_id(callback_query.from_user.id)
     lists = db_funcs.get_actual_lists(group_id)
-    keyboard = generate_lists_keyboard('')
+    keyboard = generate_lists_keyboard(lists)
+    await state.set_state('waiting_to_open_list')
     await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                 message_id=callback_query.message.message_id,
                                 text=actual_lists_text(callback_query.from_user.id),
                                 reply_markup=keyboard)
+
+
+@dp.callback_query_handler(state=UserState.WAITING_TO_OPEN_LIST)
+async def open_list(callback_query: types.CallbackQuery):
+    list_id = callback_query.data
+    pass
 
 
 if __name__ == '__main__':

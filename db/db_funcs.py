@@ -50,10 +50,14 @@ def join_to_group(group_code, user_id):
     return name
 
 
-def get_group_by_id(user_id):
+def get_group_by_user_id(user_id):
     db_sess = db_session.create_session()
     user = db_sess.query(Users).filter(Users.tg_user_id == user_id).first()
     return user.group[0].id
+
+
+def get_chat_id_by_user_id(user_id):
+    db_sess = db_session.create_session()\
 
 
 def get_group_name(user_id):

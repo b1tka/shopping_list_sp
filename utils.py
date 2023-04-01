@@ -8,6 +8,7 @@ class UserState(Helper):
     JOIN_GROUP_STATE = ListItem()
     IN_GROUP_STATE = ListItem()
     WAITING_LIST_NAME = ListItem()
+    WAITING_TO_OPEN_LIST = ListItem()
 
 
 if __name__ == '__main__':
