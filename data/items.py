@@ -9,4 +9,5 @@ class Items(SqlAlchemyBase):
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
     name = sqlalchemy.Column(sqlalchemy.String)
 
+
     sales = orm.relationship('Sales', back_populates='item')

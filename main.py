@@ -54,29 +54,33 @@ async def create_group(message: types.Message):
 async def start_join_group(message: types.Message):
     state = dp.current_state(user=message.from_user.id)
     await state.set_state('join_group_state')  # UserState.JOIN_GROUP_STATE
-    await message.answer(text=offer_to_send_code_text)
+    await message.answer(text=offer_to_send_code_text, reply_markup=back_keyboard)
 
 
 # Присоеднинение к группе
 @dp.message_handler(state=UserState.JOIN_GROUP_STATE)
 async def join_group(message: types.Message):
     state = dp.current_state(user=message.from_user.id)
-    code = message.text
-    user_id = message.from_user.id
-    res = db_funcs.join_to_group(code, user_id)
-    if db_funcs.join_to_group(code, user_id):
-        if res == 2:
-            await message.answer(text=already_in_group_text)
-            await state.reset_state()
-        else:
-            await message.answer(text=f'{success_join_text} {res}')
-            await message.answer(
-                text=f'{main_group_text(message.from_user.id)}',
-                reply_markup=group_keyboard)
-            await state.set_state('in_group_state')  # UserState.IN_GROUP_STATE
-    else:
-        await message.answer(text=group_doesnt_exist_text)
+    if message.text == 'Вернуться':
         await state.reset_state()
+        await bot.send_message(chat_id=message.chat.id, reply_markup=start_keyboard, text='❌❌❌❌❌')
+    else:
+        code = message.text
+        user_id = message.from_user.id
+        res = db_funcs.join_to_group(code, user_id)
+        if db_funcs.join_to_group(code, user_id):
+            if res == 2:
+                await message.answer(text=already_in_group_text)
+                await state.reset_state()
+            else:
+                await message.answer(text=f'{success_join_text} {res}')
+                await message.answer(
+                    text=f'{main_group_text(message.from_user.id)}',
+                    reply_markup=group_keyboard)
+                await state.set_state('in_group_state')  # UserState.IN_GROUP_STATE
+        else:
+            await message.answer(text=group_doesnt_exist_text, reply_markup=back_keyboard)
+            await state.reset_state()
 
 
 # Выход из группы
@@ -91,6 +95,11 @@ async def delete_group(callback_query: types.CallbackQuery):
                              message_id=callback_query.message.message_id)
     await callback_query.answer(text='Вы вышли из группы')
 
+@dp.callback_query_handler(lambda inline_query: inline_query.data == 'group_code',
+                           state=UserState.IN_GROUP_STATE)
+async def send_group_code(callback_query: types.CallbackQuery):
+    group = db_funcs.get_group_object_by_user_id(callback_query.from_user.id)
+    await bot.send_message(chat_id=callback_query.message.chat.id, text=group.code)
 
 # Ожидание названия листа
 @dp.message_handler(state=UserState.WAITING_LIST_NAME)
@@ -156,6 +165,7 @@ async def open_list(callback_query: types.CallbackQuery):
     chat_id = db_funcs.get_chat_id_by_user_id(user_id)
     list_id = callback_query.data
     name = db_funcs.get_name_list_by_list_id(list_id)
+    keyboard = generate_main_list_keyboard(db_funcs.items(list_id))
     await state.set_data(
         {'curr_list': list_id}
     )
@@ -164,7 +174,7 @@ async def open_list(callback_query: types.CallbackQuery):
                              message_id=callback_query.message.message_id)
     await bot.send_message(chat_id=chat_id,
                            text=f'Продукты листа {name}',
-                           reply_markup=generate_main_list_keyboard())
+                           reply_markup=keyboard)
 
 
 @dp.callback_query_handler(
@@ -181,7 +191,22 @@ async def add_new_product(callback_query: types.CallbackQuery):
 
 @dp.message_handler(state=UserState.ADD_NEW_PRODUCT)
 async def set_name_for_new_product(message: types.Message):
-    pass
+    state = dp.current_state(user=message.from_user.id)
+    chat_id = message.chat.id
+    data = await state.get_data()
+    list_id = data.get('curr_list')
+    name = db_funcs.get_name_list_by_list_id(list_id)
+    keyboard = generate_main_list_keyboard(db_funcs.items(list_id))
+    if message.text == 'Вернуться':
+        await state.set_state('in_list')
+        await bot.delete_message(chat_id=chat_id,
+                                 message_id=message.message_id)
+        await bot.send_message(chat_id=chat_id,
+                               text=f'Продукты листа {name}',
+                               reply_markup=keyboard)
+    else:
+        db_funcs.add_item_to_list(item_name=message.text, user_id=message.from_user.id, list_id=list_id)
+        await message.answer(text='Успешно добавлено ✅ ', reply_markup=generate_back_button())
 
 
 @dp.callback_query_handler(
@@ -200,6 +225,21 @@ async def back_to_actual_list(callback_query: types.CallbackQuery):
                                 text=actual_lists_text(user_id),
                                 reply_markup=keyboard)
 
+@dp.callback_query_handler(
+    lambda inline_query: inline_query.data.isdigit(),
+    state=UserState.IN_LIST
+)
+async def switch_state(callback_query: types.CallbackQuery):
+    state = dp.current_state(user=callback_query.from_user.id)
+    item_id = callback_query.data
+    db_funcs.switch_sale_state(item_id)
+    data = await state.get_data()
+    list_id = data.get('curr_list')
+    keyboard = generate_main_list_keyboard(db_funcs.items(list_id))
+    await bot.edit_message_reply_markup(chat_id=callback_query.message.chat.id,
+                                  message_id=callback_query.message.message_id,
+                                  inline_message_id=callback_query.inline_message_id,
+                                  reply_markup=keyboard)
 
 if __name__ == '__main__':
     db_session.global_init('db/database.db')

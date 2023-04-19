@@ -6,6 +6,8 @@ from data import db_session
 from data.users import Users
 from data.group import Group
 from data.lists import Lists
+from data.items import Items
+from data.sales import Sales
 
 
 def add_user_to_db_table_user(username, tg_user_id, chat_id):
@@ -56,6 +58,12 @@ def get_group_by_user_id(user_id):
     return user.group[0].id
 
 
+def get_group_object_by_user_id(user_id):
+    db_sess = db_session.create_session()
+    user = db_sess.query(Users).filter(Users.tg_user_id == user_id).first()
+    return user.group[0]
+
+
 def get_chat_id_by_user_id(user_id):
     db_sess = db_session.create_session()
     user = db_sess.query(Users).filter(Users.tg_user_id == user_id).first()
@@ -92,7 +100,36 @@ def create_new_list(group_id, name_list):
 def leave_from_group(user_id):
     db_sess = db_session.create_session()
     user = db_sess.query(Users).filter(Users.tg_user_id == user_id).first()
-    print('AAAAAAAAAAAAAAAAAAAA', user.group[0])
     user.group.remove(user.group[0])
     db_sess.commit()
     db_sess.close()
+
+
+def add_item_to_list(item_name, list_id, user_id):
+    db_sess = db_session.create_session()
+    item = Items()
+    item.name = item_name
+    db_sess.add(item)
+    list = db_sess.query(Lists).filter(Lists.id == list_id).first()
+    user = db_sess.query(Users).filter(Users.id == user_id).first()
+    sale = Sales()
+    sale.list = list
+    sale.user = user
+    sale.item = item
+    sale.state = 0
+    db_sess.add(sale)
+    db_sess.commit()
+
+
+def items(list_id):
+    db_sess = db_session.create_session()
+    list = db_sess.query(Lists).filter(Lists.id == list_id).first()
+    sales = db_sess.query(Sales).filter(Sales.list == list).all()
+    return sales
+
+
+def switch_sale_state(item_id):
+    db_sess = db_session.create_session()
+    sale = db_sess.query(Sales).filter(Sales.item_id == item_id).first()
+    sale.state = 1 if sale.state == 0 else 0
+    db_sess.commit()
