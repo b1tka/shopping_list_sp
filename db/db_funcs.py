@@ -10,6 +10,24 @@ from data.items import Items
 from data.sales import Sales
 
 
+def delete_list(list_id):
+    db_sess = db_session.create_session()
+    sells = db_sess.query(Sales).all()
+    for sell in sells:
+        db_sess.delete(sell)
+    list = db_sess.query(Lists).filter(Lists.id == list_id).first()
+    db_sess.delete(list)
+    db_sess.commit()
+
+
+def check_in_group(user_id):
+    db_sess = db_session.create_session()
+    user = db_sess.query(Users).filter(Users.tg_user_id == user_id).first()
+    if len(user.group) != 0:
+        return True
+    return False
+
+
 def add_user_to_db_table_user(username, tg_user_id, chat_id):
     db_sess = db_session.create_session()
     if db_sess.query(Users).filter(Users.tg_user_id == tg_user_id).first():

@@ -20,13 +20,24 @@ dp.middleware.setup(LoggingMiddleware())
 
 
 # Стартовая функция
-@dp.message_handler(commands=['start'], state='*')
+@dp.message_handler(commands=['start'], state='*')  
 async def start(message: types.Message):
     username = message.from_user.first_name
     tg_user_id = message.from_user.id
     chat_id = message.chat.id
     db_funcs.add_user_to_db_table_user(username, tg_user_id, chat_id)
     await message.answer(text=start_text, reply_markup=start_keyboard)
+
+
+@dp.message_handler(commands=['group'], state='*')
+async def go_to_group(message: types.Message):
+    if db_funcs.check_in_group(message.from_user.id):
+        state = dp.current_state(user=message.from_user.id)
+        await state.set_state('in_group_state')  # UserState.IN_GROUP_STATE
+        await message.answer(text=main_group_text(message.from_user.id),
+                             reply_markup=group_keyboard)
+    else:
+        await message.answer(text='Вы не состоите в группе', reply_markup=start_keyboard)
 
 
 # Запрос имя новый группы
@@ -94,6 +105,7 @@ async def delete_group(callback_query: types.CallbackQuery):
     await bot.delete_message(chat_id=callback_query.message.chat.id,
                              message_id=callback_query.message.message_id)
     await callback_query.answer(text='Вы вышли из группы')
+    await bot.send_message(chat_id=callback_query.message.chat.id, text=start_text, reply_markup=start_keyboard)
 
 @dp.callback_query_handler(lambda inline_query: inline_query.data == 'group_code',
                            state=UserState.IN_GROUP_STATE)
@@ -224,6 +236,25 @@ async def back_to_actual_list(callback_query: types.CallbackQuery):
                                 message_id=callback_query.message.message_id,
                                 text=actual_lists_text(user_id),
                                 reply_markup=keyboard)
+
+
+@dp.callback_query_handler(lambda inline_query: inline_query.data == 'delete_list', state=UserState.IN_LIST)
+async def delete_list(callback_query: types.CallbackQuery):
+    user_id = callback_query.from_user.id
+    state = dp.current_state(user=callback_query.from_user.id)
+    data = await state.get_data()
+    list_id = data.get('curr_list')
+    db_funcs.delete_list(list_id)
+    group_id = db_funcs.get_group_by_user_id(user_id)
+    lists = db_funcs.get_actual_lists(group_id)
+    keyboard = generate_actual_lists_keyboard(lists)
+    await state.set_state('waiting_to_open_list')
+    await bot.edit_message_text(chat_id=callback_query.message.chat.id,
+                                message_id=callback_query.message.message_id,
+                                text=actual_lists_text(user_id),
+                                reply_markup=keyboard)
+
+
 
 @dp.callback_query_handler(
     lambda inline_query: inline_query.data.isdigit(),

@@ -60,6 +60,8 @@ def generate_main_list_keyboard(sales):
                                 callback_data='back_to_actual_lists')
     add_new_item = InlineKeyboardButton(text='Добавить новый продукт',
                                         callback_data='add_new_item')
+    delete = InlineKeyboardButton(text='Удалить лист',
+                                  callback_data='delete_list')
 
     keyboard = InlineKeyboardMarkup()
     for sale in sales:
@@ -69,8 +71,9 @@ def generate_main_list_keyboard(sales):
         else:
             keyboard.add(InlineKeyboardButton(text=f'{sale.item.name} 🕛',
                             callback_data=sale.item.id))
-    keyboard.add(back)
     keyboard.add(add_new_item)
+    keyboard.add(delete)
+    keyboard.add(back)
 
     return keyboard
 # --------------------------------------------------------------------------------------------------------------------------
@@ -79,7 +82,7 @@ def generate_main_list_keyboard(sales):
 def generate_back_button():
     back = KeyboardButton(text='Вернуться')
 
-    back_keyboard = ReplyKeyboardMarkup()
+    back_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
     back_keyboard.add(back)
 
     return back_keyboard
