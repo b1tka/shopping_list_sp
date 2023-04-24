@@ -1,0 +1,2 @@
+SQLAlchemy~=2.0.5.post1
+aiogram~=2.23.1
